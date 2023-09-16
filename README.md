@@ -43,6 +43,8 @@ call get_au_nested_query('000000-0000-0000-000000000001');
 
 If there are no rows returned by the queries the procedure will return an empty table. This is different from the get_is_nested_query version.
 
+---
+
 # debug child session (deprecated)
 
 Retrieving the underlying SQL that a stored procedure executes isn't simple in the classic UI or Snowsight. This procedure takes a query_id and retrieves the underlying sql statements in the session executed during the duration the procedure ran. 
