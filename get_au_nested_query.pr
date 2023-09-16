@@ -1,0 +1,56 @@
+CREATE OR REPLACE PROCEDURE GET_AU_NESTED_QUERY(QUERY_ID TEXT) RETURNS TABLE()
+-- account_usage version which is able to debug queries that have run over and 
+-- show up in snowflake.account_usage.query_history
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS 
+$$
+DECLARE
+    res       RESULTSET;
+    statement TEXT;
+BEGIN
+    statement := 'WITH sessions as (
+        select qh.query_id as parent_query_id, 
+               qh.session_id as parent_session_id, 
+               qh.start_time as parent_start_time, 
+               qh.end_time as parent_end_time, 
+               qh.total_elapsed_time as parent_total_elapsed_time, 
+               qh.user_name as parent_user_name, 
+               qh.role_name as parent_role_name, 
+               qh.query_text as parent_query_text, 
+               qh.execution_status as parent_execution_status,
+               qh.error_code as parent_error_code,
+               qh.error_message as parent_error_message
+          from snowflake.account_usage.query_history qh
+         where qh.query_id = '''||:QUERY_ID||'''
+           and qh.start_time > dateadd(day, -14, getdate())
+    )
+    select s.parent_query_id, 
+           s.parent_session_id,
+           s.parent_start_time,
+           s.parent_end_time,
+           s.parent_total_elapsed_time,
+           s.parent_user_name, 
+           s.parent_role_name, 
+           s.parent_query_text,
+           s.parent_execution_status,
+           s.parent_error_code,  
+           s.parent_error_message,
+           qh.*
+      from sessions s,
+           snowflake.account_usage.query_history qh
+     where s.parent_start_time <= qh.start_time and qh.start_time < s.parent_end_time
+       and s.parent_session_id = qh.session_id
+       and qh.start_time > dateadd(day, -14, getdate())
+     order by qh.start_time asc ';
+    res := (EXECUTE IMMEDIATE :statement);
+    return TABLE(res);
+
+EXCEPTION
+    WHEN STATEMENT_ERROR THEN
+        statement := 'select ''STATEMENT_ERROR'' as ERROR_TYPE, '''||:sqlcode||''' as SQL_CODE, '''||:sqlerrm||''' as SQL_ERRM, '''||:sqlstate||''' as SQL_STATE';
+        res := (EXECUTE IMMEDIATE :statement);
+        RETURN TABLE(res);
+END;
+$$;
+

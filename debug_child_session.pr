@@ -17,7 +17,9 @@ BEGIN
                qh.role_name as parent_role_name, 
                qh.query_text as parent_query_text, 
                datediff(millisecond, qh.start_time, end_time) as parent_total_elapsed_time, 
-               qh.execution_status as parent_execution_status 
+               qh.execution_status as parent_execution_status,
+               qh.error_code as parent_error_code,
+               qh.error_message as parent_error_message
           from table(snowflake.information_schema.query_history(result_limit=>10000)) qh
          where qh.query_id = '''|| QUERY_ID ||'''
     ), finished_sessions as (
@@ -29,21 +31,24 @@ BEGIN
                qh.role_name as parent_role_name, 
                qh.query_text as parent_query_text, 
                qh.total_elapsed_time as parent_total_elapsed_time, 
-               qh.execution_status as parent_execution_status
+               qh.execution_status as parent_execution_status,
+               qh.error_code as parent_error_code,
+               qh.error_message as parent_error_message
           from snowflake.account_usage.query_history qh
          where qh.query_id = '''|| QUERY_ID ||'''
-           and qh.start_time > dateadd(day, -7, getdate())
+           and qh.start_time > dateadd(day, -14, getdate())
     ), sessions as (
         select * from running_sessions
         union
         select * from finished_sessions
     )
-    select s.parent_query_id, s.parent_user_name, s.parent_role_name, s.parent_query_text, qh.* 
+    select s.parent_query_id, s.parent_user_name, s.parent_role_name, s.parent_execution_status, s.parent_error_code, s.parent_error_message, s.parent_query_text, qh.* 
       from sessions s, 
            snowflake.account_usage.query_history qh
-     where s.parent_start_time <= qh.start_time and s.parent_end_time >= qh.end_time
+--           table(snowflake.information_schema.query_history_by_session(session_id=>(select parent_session_id from sessions),result_limit=>10000)) qh
+     where s.parent_start_time <= qh.start_time and qh.start_time < s.parent_end_time
        and s.parent_session_id = qh.session_id
-       and qh.start_time > dateadd(day, -7, getdate())
+       and qh.start_time > dateadd(day, -14, getdate())
      order by qh.start_time asc)';
     res := (EXECUTE IMMEDIATE :statement);
     return TABLE(res);

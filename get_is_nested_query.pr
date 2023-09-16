@@ -1,0 +1,80 @@
+CREATE OR REPLACE PROCEDURE GET_IS_NESTED_QUERY(QUERY_ID TEXT) RETURNS TABLE()
+-- information_schema version which is able to debug queries that are
+-- currently running or ran recently
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS 
+$$
+DECLARE
+    res                       RESULTSET;
+    statement                 TEXT;
+    parent_query_id           TEXT;
+    parent_session_id         NUMBER;
+    parent_start_time         TIMESTAMP_LTZ;
+    parent_end_time           TIMESTAMP_LTZ;
+    parent_user_name          TEXT;
+    parent_role_name          TEXT;
+    parent_query_text         TEXT;
+    parent_total_elapsed_time NUMBER;
+    parent_execution_status   TEXT;
+    parent_error_code         TEXT;
+    parent_error_message      TEXT;
+BEGIN
+    WITH sessions as (
+        select qh.query_id as parent_query_id, 
+               qh.session_id as parent_session_id, 
+               qh.start_time as parent_start_time, 
+               case when qh.end_time > dateadd(day, -7, getdate()) -- if the query is still running this will be false
+                 then qh.end_time 
+                 else current_timestamp() 
+               end as parent_end_time, 
+               datediff(millisecond, qh.start_time, end_time) as parent_total_elapsed_time, 
+               qh.user_name as parent_user_name, 
+               qh.role_name as parent_role_name, 
+               qh.query_text as parent_query_text, 
+               qh.execution_status as parent_execution_status,
+               qh.error_code as parent_error_code,
+               qh.error_message as parent_error_message
+          from table(snowflake.information_schema.query_history(result_limit=>10000)) qh
+         where qh.query_id = :QUERY_ID
+    )
+    select s.parent_query_id, 
+           s.parent_session_id,
+           s.parent_start_time,
+           s.parent_end_time,
+           s.parent_total_elapsed_time,
+           s.parent_user_name, 
+           s.parent_role_name, 
+           s.parent_query_text,
+           s.parent_execution_status,
+           s.parent_error_code,  
+           s.parent_error_message
+      into :parent_query_id, 
+           :parent_session_id, 
+           :parent_start_time, 
+           :parent_end_time, 
+           :parent_total_elapsed_time, 
+           :parent_user_name, 
+           :parent_role_name, 
+           :parent_query_text, 
+           :parent_execution_status, 
+           :parent_error_code, 
+           :parent_error_message
+      from sessions s;
+    statement := 'select last_query.parent_query_id, ,
+                         qh.*
+                    from table(snowflake.information_schema.query_history_by_session(session_id=>'||:parent_session_id::NUMBER||',result_limit=>10000)) qh,
+                         table(result_scan(last_query_id())) last_query
+                     where start_time >= '''||:parent_start_time::TIMESTAMP_LTZ||'''
+                       and start_time < '''||:parent_end_time::TIMESTAMP_LTZ||'''
+                     order by start_time asc';
+    res := (EXECUTE IMMEDIATE :statement);
+    return TABLE(res);
+EXCEPTION
+    WHEN STATEMENT_ERROR THEN
+        statement := 'select ''STATEMENT_ERROR'' as ERROR_TYPE, '''||:sqlcode||''' as SQL_CODE, '''||:sqlerrm||''' as SQL_ERRM, '''||:sqlstate||''' as SQL_STATE';
+        res := (EXECUTE IMMEDIATE :statement);
+        RETURN TABLE(res);
+END;
+$$;
+
