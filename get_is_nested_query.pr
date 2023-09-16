@@ -1,4 +1,5 @@
 CREATE OR REPLACE PROCEDURE GET_IS_NESTED_QUERY(QUERY_ID TEXT) RETURNS TABLE()
+-- Copyright 2023 Thomas Eibner
 -- information_schema version which is able to debug queries that are
 -- currently running or ran recently
 LANGUAGE SQL
