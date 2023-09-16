@@ -45,6 +45,16 @@ call get_au_nested_query('000000-0000-0000-000000000001');
 
 If there are no rows returned by the queries the procedure will return an empty table. This is different from the get_is_nested_query version.
 
+# Author
+
+Thomas Eibner (@thomaseibner) [LinkedIn](https://www.linkedin.com/in/thomaseibner/)
+
+# License
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.You may obtain a copy of the License at: http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.See the License for the specific language governing permissions and limitations under the License.
+
 ---
 
 # debug child session (deprecated)
