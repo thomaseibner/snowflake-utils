@@ -61,7 +61,7 @@ BEGIN
            :parent_error_code, 
            :parent_error_message
       from sessions s;
-    statement := 'select last_query.parent_query_id, ,
+    statement := 'select last_query.*,
                          qh.*
                     from table(snowflake.information_schema.query_history_by_session(session_id=>'||:parent_session_id::NUMBER||',result_limit=>10000)) qh,
                          table(result_scan(last_query_id())) last_query
