@@ -8,6 +8,8 @@ Both get_is_nested_query and get_au_nested_query are wrappers meant to make it e
 
 Choosing between the two versions depends on what you have access to in Snowflake. The information_schema version requires less privileges, but has some limitations in that it can only give you data back from up to the last 7 days, but because of the way you have to query information_schema you may only be able to look through the 10,000 most recent queries. If you only look for a specific user it is possible to change the query to look at the query_history_by_user view instead of query_history. The account_usage version can go back further in time, but requires more privileges. For performance purposes the account_usage version only looks back to 14 days worth of query history. 
 
+Hopefully this functionality will one day become native in the Snowflake UIs.
+
 # get_is_nested_query('query_id')
 
 Retrieve the underlying SQL that a stored procedure executes - information_schema version. 
